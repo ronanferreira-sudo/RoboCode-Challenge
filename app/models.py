@@ -3,19 +3,33 @@ from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from app.database import Base
 
+class Classroom(Base):
+    __tablename__ = "classrooms"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)         # Ex: "Turma A" / "3ºA Info"
+    code = Column(String(50), nullable=False, unique=True)  # Ex: "3A-2026" — exibido no HUD
+    description = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    users = relationship("User", back_populates="classroom")
+
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=False)
-    email = Column(String(150), unique=True, index=True, nullable=False)
+    username = Column(String(100), unique=True, index=True, nullable=False)
+    name = Column(String(100), nullable=True)
+    email = Column(String(150), unique=True, index=True, nullable=True)
     password_hash = Column(String(255), nullable=False)
     avatar = Column(String(50), default="robot-cyber")
     xp = Column(Integer, default=0)
     level = Column(Integer, default=1)
     is_admin = Column(Boolean, default=False) # Permissão de Administrador
+    classroom_id = Column(Integer, ForeignKey("classrooms.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+    classroom = relationship("Classroom", back_populates="users")
     submissions = relationship("Submission", back_populates="user", cascade="all, delete-orphan")
     progress = relationship("UserProgress", back_populates="user", cascade="all, delete-orphan")
 
@@ -29,6 +43,7 @@ class Activity(Base):
     difficulty = Column(String(20), default="EASY") # EASY, MEDIUM, HARD, BOSS
     xp_reward = Column(Integer, default=100)
     initial_code = Column(Text, default="# Escreva seu código em Python aqui\n")
+    solution_code = Column(Text, nullable=True) # Código gabarito de referência (visível apenas para admins)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     test_cases = relationship("TestCase", back_populates="activity", cascade="all, delete-orphan")
