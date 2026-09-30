@@ -1,4 +1,5 @@
 import bcrypt
+import unicodedata
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -18,6 +19,38 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+def _normalize_identifier(value: str) -> str:
+    """Normaliza login para comparar ignorando acentos, maiusculas e espacos extras."""
+    decomposed = unicodedata.normalize("NFKD", value.strip().casefold())
+    without_accents = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+    return " ".join(without_accents.split())
+
+
+def find_user_by_identifier(db: Session, identifier: str) -> Optional[User]:
+    """Busca usuario por username ou email, ignorando acentos e caixa."""
+    if not identifier:
+        return None
+
+    exact = db.query(User).filter(
+        (User.username == identifier) | (User.email == identifier)
+    ).first()
+    if exact:
+        return exact
+
+    target = _normalize_identifier(identifier)
+    candidates = db.query(User).filter(
+        (User.username.isnot(None)) | (User.email.isnot(None))
+    ).all()
+    matches = [
+        user for user in candidates
+        if _normalize_identifier(user.username or "") == target
+        or _normalize_identifier(user.email or "") == target
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    return None
+
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
@@ -43,7 +76,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except JWTError:
         raise credentials_exception
 
-    user = db.query(User).filter((User.username == username) | (User.email == username)).first()
+    user = find_user_by_identifier(db, username)
     if user is None:
         raise credentials_exception
     return user

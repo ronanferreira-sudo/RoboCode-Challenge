@@ -54,20 +54,40 @@ def normalize_output(text: str) -> str:
     lines = [line.rstrip() for line in text.replace("\r\n", "\n").replace("\r", "\n").strip().split("\n")]
     return "\n".join(lines)
 
+_NUMERIC_TOKEN = re.compile(r'\d+(?:\.\d+)?')
+
+def canonicalize_numbers(text: str) -> str:
+    """Normaliza numeros para que 25, 25.0 e 25.00 sejam equivalentes na comparacao.
+
+    Sem isso, um aluno que use round(preco, 2) em vez de format(preco, '.2f')
+    imprime 'R$ 25.0' e reprova num gabarito esperado com 'R$ 25.00'.
+    """
+    def replace(match):
+        raw = match.group(0)
+        try:
+            value = float(raw)
+        except ValueError:
+            return raw
+        if value == int(value):
+            return str(int(value))
+        return f"{value:.10f}".rstrip("0").rstrip(".")
+
+    return _NUMERIC_TOKEN.sub(replace, text or "")
+
 def is_lenient_match(actual: str, expected: str) -> bool:
     if not actual and not expected: return True
     if not actual or not expected: return False
-    
-    actual_norm = re.sub(r'[^\w\s]', '', actual).strip().lower()
-    expected_norm = re.sub(r'[^\w\s]', '', expected).strip().lower()
+
+    actual_norm = re.sub(r'[^\w\s]', '', canonicalize_numbers(actual)).strip().lower()
+    expected_norm = re.sub(r'[^\w\s]', '', canonicalize_numbers(expected)).strip().lower()
     
     actual_norm = re.sub(r'\s+', ' ', actual_norm)
     expected_norm = re.sub(r'\s+', ' ', expected_norm)
     
     if actual_norm == expected_norm: return True
     
-    nums_actual = re.findall(r'\d+', actual)
-    nums_expected = re.findall(r'\d+', expected)
+    nums_actual = re.findall(r'\d+(?:\.\d+)?', canonicalize_numbers(actual))
+    nums_expected = re.findall(r'\d+(?:\.\d+)?', canonicalize_numbers(expected))
     if nums_actual != nums_expected: return False
     
     critical_words = ['aprovado', 'reprovado', 'true', 'false']
@@ -133,7 +153,7 @@ def build_user_response(user: User) -> schemas.UserResponse:
 # -------------------------------------------------------------------
 @app.post("/api/auth/register", response_model=dict)
 def register(user_in: schemas.UserRegister, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.username == user_in.username).first()
+    existing_user = auth.find_user_by_identifier(db, user_in.username)
     if existing_user:
         raise HTTPException(status_code=400, detail="Este nome de usuário já está cadastrado no RoboCode!")
 
@@ -171,9 +191,7 @@ def register(user_in: schemas.UserRegister, db: Session = Depends(get_db)):
 
 @app.post("/api/auth/login", response_model=dict)
 def login(user_in: schemas.UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(
-        (User.username == user_in.username) | (User.email == user_in.username)
-    ).first()
+    user = auth.find_user_by_identifier(db, user_in.username)
     if not user or not auth.verify_password(user_in.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Usuário ou senha incorretos!")
 
@@ -191,9 +209,7 @@ def get_me(current_user: User = Depends(auth.get_current_user)):
 @app.put("/api/auth/update", response_model=dict)
 def update_user_data(user_in: schemas.UserUpdate, db: Session = Depends(get_db)):
     """Permite ao usuário alterar sua senha, avatar e/ou turma usando as credenciais atuais."""
-    user = db.query(User).filter(
-        (User.username == user_in.username) | (User.email == user_in.username)
-    ).first()
+    user = auth.find_user_by_identifier(db, user_in.username)
     if not user or not auth.verify_password(user_in.current_password, user.password_hash):
         raise HTTPException(status_code=401, detail="Usuário ou senha atual incorretos!")
 
@@ -381,7 +397,17 @@ def create_activity(
     db.commit()
     db.refresh(activity)
 
-    if activity.solution_code:
+    if act_in.expected_output:
+        tc = TestCase(
+            activity_id=activity.id,
+            input_data=act_in.input_data or "",
+            expected_output=act_in.expected_output,
+            is_hidden=False
+        )
+        db.add(tc)
+        db.commit()
+        db.refresh(activity)
+    elif activity.solution_code:
         sol_eval = evaluator.execute_python_code(activity.solution_code, "")
         if not sol_eval["error"]:
             tc = TestCase(
@@ -456,7 +482,24 @@ def update_activity(
     if act_in.solution_code is not None:
         activity.solution_code = act_in.solution_code
 
-    if activity.solution_code and len(activity.test_cases) == 0:
+    if act_in.input_data is not None or act_in.expected_output is not None:
+        if activity.test_cases:
+            tc = activity.test_cases[0]
+            if act_in.input_data is not None:
+                tc.input_data = act_in.input_data
+            if act_in.expected_output is not None:
+                tc.expected_output = act_in.expected_output
+        elif act_in.expected_output is not None and act_in.expected_output.strip():
+            tc = TestCase(
+                activity_id=activity.id,
+                input_data=act_in.input_data or "",
+                expected_output=act_in.expected_output,
+                is_hidden=False
+            )
+            db.add(tc)
+        db.commit()
+        db.refresh(activity)
+    elif activity.solution_code and len(activity.test_cases) == 0:
         sol_eval = evaluator.execute_python_code(activity.solution_code, "")
         if not sol_eval["error"]:
             tc = TestCase(

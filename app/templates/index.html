@@ -138,7 +138,7 @@
             const [testCasesModal, setTestCasesModal] = useState(null); // null or { activityId: int, testCases: [] }
             const [solutionTestResult, setSolutionTestResult] = useState(null);
             const [activityForm, setActivityForm] = useState({
-                phase: 1, title: '', description: '', difficulty: 'EASY', xp_reward: 100, initial_code: '# Escreva seu código em Python aqui\n', solution_code: '# Código de solução / gabarito de referência (oculto para alunos)\n'
+                phase: 1, title: '', description: '', difficulty: 'EASY', xp_reward: 100, initial_code: '# Escreva seu código em Python aqui\n', input_data: '', expected_output: ''
             });
             const [tcForm, setTcForm] = useState({ input_data: '', expected_output: '', is_hidden: false });
             
@@ -395,7 +395,8 @@
                     difficulty: 'EASY',
                     xp_reward: 100,
                     initial_code: '# Escreva seu código em Python aqui\n',
-                    solution_code: '# Código de solução / gabarito de referência (oculto para alunos)\n'
+                    input_data: '',
+                    expected_output: ''
                 });
                 setActivityModal({ isEdit: false, id: null });
             };
@@ -411,7 +412,8 @@
                         difficulty: fullAct.difficulty,
                         xp_reward: fullAct.xp_reward,
                         initial_code: fullAct.initial_code || '# Escreva seu código em Python aqui\n',
-                        solution_code: fullAct.solution_code || ''
+                        input_data: (fullAct.test_cases && fullAct.test_cases.length > 0) ? fullAct.test_cases[0].input_data : '',
+                        expected_output: (fullAct.test_cases && fullAct.test_cases.length > 0) ? fullAct.test_cases[0].expected_output : ''
                     });
                     setActivityModal({ isEdit: true, id: fullAct.id });
                 } catch (err) {
@@ -1518,6 +1520,13 @@
                                                             <i class="fa-solid fa-flask mr-1"></i> Gabarito
                                                         </button>
                                                         <button 
+                                                            onClick={() => openManageTestCases(act.id)}
+                                                            class="px-3 py-1 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border border-blue-500/40 rounded-lg text-xs font-bold transition-all"
+                                                            title="Gerenciar Casos de Teste"
+                                                        >
+                                                            <i class="fa-solid fa-vial mr-1"></i> Testes
+                                                        </button>
+                                                        <button 
                                                             onClick={() => openEditActivityModal(act)}
                                                             class="px-3 py-1 bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-500/40 rounded-lg text-xs font-bold transition-all"
                                                             title="Editar Atividade"
@@ -1715,26 +1724,41 @@
                                         ></textarea>
                                     </div>
 
-                                    <div class="p-3 bg-cyber-bg rounded-xl border border-purple-500/40 space-y-2">
-                                        <div class="flex items-center justify-between">
-                                            <label class="block text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5 font-mono">
-                                                <i class="fa-solid fa-shield-halved text-purple-400"></i> Código Gabarito de Referência (Base para Validação)
-                                            </label>
-                                            <span class="text-[9px] bg-purple-900/60 text-purple-300 font-bold px-2 py-0.5 rounded border border-purple-500/40 uppercase">
-                                                🔒 Oculto para Alunos
-                                            </span>
-                                        </div>
-                                        <p class="text-[11px] text-gray-400">
-                                            Escreva aqui o código Python completo com a solução ideal da atividade. Ele serve de base de análise para testar os casos de teste e aprovar a questão, e não é exibido aos alunos.
-                                        </p>
-                                        <textarea 
-                                            rows="4" 
-                                            placeholder="# Código gabarito da solução ideal em Python..."
-                                            class="w-full bg-cyber-card border border-cyber-border rounded-xl p-3 text-xs text-purple-300 font-mono focus:outline-none focus:border-purple-400"
-                                            value={activityForm.solution_code}
-                                            onChange={e => setActivityForm({...activityForm, solution_code: e.target.value})}
-                                        ></textarea>
-                                    </div>
+                                     <div class="p-3 bg-cyber-bg rounded-xl border border-cyan-500/40 space-y-2">
+                                         <div class="flex items-center justify-between">
+                                             <label class="block text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                                                 <i class="fa-solid fa-terminal"></i> Entrada (stdin)
+                                             </label>
+                                         </div>
+                                         <p class="text-[11px] text-gray-400">
+                                             Valores de entrada para input(). Uma linha por chamada.
+                                         </p>
+                                         <textarea
+                                             rows="3"
+                                             placeholder="Ex: 10&#10;20"
+                                             class="w-full bg-cyber-card border border-cyan-500/40 rounded-xl p-3 text-xs text-cyan-300 font-mono focus:outline-none focus:border-cyan-400"
+                                             value={activityForm.input_data}
+                                             onChange={e => setActivityForm({...activityForm, input_data: e.target.value})}
+                                         ></textarea>
+                                     </div>
+
+                                     <div class="p-3 bg-cyber-bg rounded-xl border border-emerald-500/40 space-y-2 mt-3">
+                                         <div class="flex items-center justify-between">
+                                             <label class="block text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                                                 <i class="fa-solid fa-check-double"></i> Saída Esperada
+                                             </label>
+                                         </div>
+                                         <p class="text-[11px] text-gray-400">
+                                             Saída exata que o código correto deve produzir para esta entrada.
+                                         </p>
+                                         <textarea
+                                             rows="3"
+                                             placeholder="Ex: Energia total: 30"
+                                             class="w-full bg-cyber-card border border-emerald-500/40 rounded-xl p-3 text-xs text-emerald-300 font-mono focus:outline-none focus:border-emerald-400"
+                                             value={activityForm.expected_output}
+                                             onChange={e => setActivityForm({...activityForm, expected_output: e.target.value})}
+                                         ></textarea>
+                                     </div>
 
                                     <div class="flex items-center justify-end gap-3 pt-3 border-t border-cyber-border">
                                         <button 
@@ -1797,6 +1821,127 @@
                                 <div class="flex justify-end pt-2">
                                     <button 
                                         onClick={() => setSolutionTestResult(null)}
+                                        class="px-5 py-2 bg-gray-800 text-white rounded-xl text-xs font-bold hover:bg-gray-700 transition-colors"
+                                    >
+                                        Fechar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAL GERENCIAR CASOS DE TESTE (ADMIN) */}
+                    {testCasesModal && (
+                        <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+                            <div class="bg-cyber-card border border-cyber-border rounded-2xl p-6 max-w-4xl w-full shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar">
+                                <div class="flex items-center justify-between mb-4 pb-3 border-b border-cyber-border">
+                                    <h3 class="text-lg font-black text-white flex items-center gap-2">
+                                        <i class="fa-solid fa-vial text-cyan-400"></i>
+                                        Casos de Teste — {testCasesModal.activityTitle}
+                                    </h3>
+                                    <button onClick={() => setTestCasesModal(null)} class="text-gray-400 hover:text-white">
+                                        <i class="fa-solid fa-xmark text-lg"></i>
+                                    </button>
+                                </div>
+
+                                {/* Formulário de adicionar / editar caso de teste */}
+                                <form onSubmit={handleAddTestCase} class="mb-5">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                                        <div>
+                                            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Entrada (stdin)</label>
+                                            <textarea
+                                                rows="3"
+                                                placeholder="Ex: 10&#10;20"
+                                                class="w-full bg-cyber-bg border border-cyber-border rounded-xl p-2.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-400"
+                                                value={tcForm.input_data}
+                                                onChange={e => setTcForm({...tcForm, input_data: e.target.value})}
+                                            ></textarea>
+                                            <p class="text-[10px] text-gray-500 mt-1">Cada linha representa uma chamada a input().</p>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center justify-between">
+                                                <span>Saída Esperada</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleGenerateOutputFromSolution}
+                                                    disabled={loading || !tcForm.input_data}
+                                                    class="px-2 py-0.5 bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 border border-purple-500/40 rounded-lg text-[10px] font-bold transition-all"
+                                                    title="Gerar saída automática pelo gabarito"
+                                                >
+                                                    {loading ? <i class="fa-solid fa-circle-notch fa-spin"></i> : <i class="fa-solid fa-magic-wand-sparkles mr-0.5"></i>} Gerar
+                                                </button>
+                                            </label>
+                                            <textarea
+                                                rows="3"
+                                                placeholder="Ex: Energia total: 30"
+                                                class="w-full bg-cyber-bg border border-cyber-border rounded-xl p-2.5 text-xs text-emerald-300 font-mono focus:outline-none focus:border-emerald-400"
+                                                value={tcForm.expected_output}
+                                                onChange={e => setTcForm({...tcForm, expected_output: e.target.value})}
+                                            ></textarea>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center justify-between mb-3">
+                                        <label class="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={tcForm.is_hidden}
+                                                onChange={e => setTcForm({...tcForm, is_hidden: e.target.checked})}
+                                                class="w-4 h-4 rounded bg-cyber-bg border-cyber-border text-cyan-500 focus:ring-cyan-500"
+                                            />
+                                            Teste oculto (não visível para alunos)
+                                        </label>
+                                        <button
+                                            type="submit"
+                                            disabled={loading || !tcForm.expected_output.trim()}
+                                            class="px-4 py-1.5 bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 rounded-lg text-xs font-black hover:opacity-90 transition-opacity disabled:opacity-50"
+                                        >
+                                            {loading ? <i class="fa-solid fa-circle-notch fa-spin"></i> : <i class="fa-solid fa-plus mr-1"></i>} Adicionar Caso
+                                        </button>
+                                    </div>
+                                </form>
+
+                                {/* Lista de casos de teste existentes */}
+                                {testCasesModal.testCases.length === 0 ? (
+                                    <p class="text-gray-500 text-sm text-center py-6">Nenhum caso de teste cadastrado. Adicione um usando o formulário acima.</p>
+                                ) : (
+                                    <div class="space-y-2.5">
+                                        {testCasesModal.testCases.map((tc) => (
+                                            <div key={tc.id} class="bg-cyber-bg/50 rounded-xl border border-cyber-border p-3.5">
+                                                <div class="flex items-center justify-between mb-2.5">
+                                                    <span class="text-xs font-bold text-gray-400 font-mono">Caso #{tc.id}</span>
+                                                    <span class={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+                                                        tc.is_hidden
+                                                            ? 'bg-gray-700/60 text-gray-400 border-gray-500/40'
+                                                            : 'bg-emerald-950/60 text-emerald-400 border-emerald-500/40'
+                                                    }`}>
+                                                        {tc.is_hidden ? 'Oculto' : 'Público'}
+                                                    </span>
+                                                </div>
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2.5">
+                                                    <div>
+                                                        <span class="text-xs text-cyan-400 font-bold">Entrada (stdin):</span>
+                                                        <pre class="whitespace-pre-wrap bg-black/30 rounded p-2 mt-1 text-xs text-gray-300 font-mono min-h-[40px]">{tc.input_data || '(vazia)'}</pre>
+                                                    </div>
+                                                    <div>
+                                                        <span class="text-xs text-emerald-400 font-bold">Saída Esperada:</span>
+                                                        <pre class="whitespace-pre-wrap bg-black/30 rounded p-2 mt-1 text-xs text-emerald-300 font-mono min-h-[40px]">{tc.expected_output || '(vazia)'}</pre>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleDeleteTestCase(tc.id)}
+                                                    class="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/40 rounded-lg text-xs font-bold transition-all"
+                                                >
+                                                    <i class="fa-solid fa-trash mr-1"></i> Excluir Caso
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <div class="flex justify-end pt-3 border-t border-cyber-border mt-4">
+                                    <button
+                                        onClick={() => setTestCasesModal(null)}
                                         class="px-5 py-2 bg-gray-800 text-white rounded-xl text-xs font-bold hover:bg-gray-700 transition-colors"
                                     >
                                         Fechar

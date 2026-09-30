@@ -88,6 +88,8 @@ class ActivityCreate(BaseModel):
     xp_reward: int = 100
     initial_code: Optional[str] = "# Escreva seu código em Python aqui\n"
     solution_code: Optional[str] = None
+    input_data: Optional[str] = ""
+    expected_output: Optional[str] = ""
 
 class ActivityUpdate(BaseModel):
     phase: Optional[int] = None
@@ -97,6 +99,8 @@ class ActivityUpdate(BaseModel):
     xp_reward: Optional[int] = None
     initial_code: Optional[str] = None
     solution_code: Optional[str] = None
+    input_data: Optional[str] = None
+    expected_output: Optional[str] = None
 
 class ActivityResponse(BaseModel):
     id: int
